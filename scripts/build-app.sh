@@ -17,6 +17,9 @@ mkdir -p "$APP/Contents/MacOS"
 cp "$BIN" "$APP/Contents/MacOS/VitalsMac"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 
+# Extended attributes (Finder info, quarantine) make codesign refuse the bundle.
+xattr -cr "$APP"
+
 # Ad-hoc signature: enough to run locally and to register as a login item.
 codesign --force --sign - "$APP"
 codesign --verify --verbose=2 "$APP"

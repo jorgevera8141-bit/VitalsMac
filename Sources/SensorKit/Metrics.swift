@@ -4,6 +4,8 @@ import Foundation
 public struct Metrics: Equatable, Sendable {
     public internal(set) var cpuUser = 0.0
     public internal(set) var cpuSystem = 0.0
+    /// Busy share (0...1) of each core; empty until two samples exist.
+    public internal(set) var perCoreUsage: [Double] = []
     public internal(set) var memoryUsed: UInt64 = 0
     public internal(set) var memoryTotal: UInt64 = 0
     public internal(set) var diskUsed: UInt64 = 0

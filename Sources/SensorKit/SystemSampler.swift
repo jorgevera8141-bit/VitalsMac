@@ -5,6 +5,7 @@ import IOKit.ps
 /// each call can report usage and throughput since the last call.
 public final class SystemSampler {
     private var lastTicks: CPUTicks?
+    private var lastCoreTicks: [CPUTicks] = []
     private var lastNetwork: NetworkCounters?
     private var lastSampleDate: Date?
     private let smc = SMCReader()
@@ -42,6 +43,10 @@ public final class SystemSampler {
         guard let ticks = Self.readCPUTicks() else { return [] }
         defer { lastTicks = ticks }
 
+        let coreTicks = Self.readCoreTicks()
+        working.perCoreUsage = Calculations.perCoreUsage(previous: lastCoreTicks, current: coreTicks)
+        lastCoreTicks = coreTicks
+
         let usage = lastTicks.map { Calculations.cpuUsage(previous: $0, current: ticks) } ?? 0
         if let previous = lastTicks {
             let split = Calculations.cpuBreakdown(previous: previous, current: ticks)
@@ -72,6 +77,32 @@ public final class SystemSampler {
             idle: UInt64(info.cpu_ticks.2),
             nice: UInt64(info.cpu_ticks.3)
         )
+    }
+
+    /// Cumulative ticks for every logical core, in core order.
+    static func readCoreTicks() -> [CPUTicks] {
+        var coreCount: natural_t = 0
+        var info: processor_info_array_t?
+        var infoCount: mach_msg_type_number_t = 0
+        let result = host_processor_info(mach_host_self(), PROCESSOR_CPU_LOAD_INFO, &coreCount, &info, &infoCount)
+        guard result == KERN_SUCCESS, let info else { return [] }
+        defer {
+            vm_deallocate(
+                mach_task_self_, vm_address_t(UInt(bitPattern: info)),
+                vm_size_t(infoCount) * vm_size_t(MemoryLayout<integer_t>.size)
+            )
+        }
+
+        let stride = Int(CPU_STATE_MAX)
+        return (0..<Int(coreCount)).map { core in
+            func ticks(_ state: Int32) -> UInt64 {
+                UInt64(UInt32(bitPattern: info[core * stride + Int(state)]))
+            }
+            return CPUTicks(
+                user: ticks(CPU_STATE_USER), system: ticks(CPU_STATE_SYSTEM),
+                idle: ticks(CPU_STATE_IDLE), nice: ticks(CPU_STATE_NICE)
+            )
+        }
     }
 
     static func loadAverages() -> (Double, Double, Double) {

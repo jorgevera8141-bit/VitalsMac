@@ -47,6 +47,12 @@ public enum Calculations {
         return (min(max(user, 0), 1), min(max(system, 0), 1))
     }
 
+    /// Busy share (0...1) of each core between two samples. Empty if the core counts differ.
+    public static func perCoreUsage(previous: [CPUTicks], current: [CPUTicks]) -> [Double] {
+        guard previous.count == current.count else { return [] }
+        return zip(previous, current).map { cpuUsage(previous: $0, current: $1) }
+    }
+
     /// Bytes per second received and sent between two samples.
     public static func networkRate(
         previous: NetworkCounters,

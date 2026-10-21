@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "VitalsMac",
-    platforms: [.macOS(.v14)],
+    platforms: [.macOS(.v15)],
     products: [
         .executable(name: "VitalsMac", targets: ["VitalsMac"]),
         .library(name: "SensorKit", targets: ["SensorKit"]),

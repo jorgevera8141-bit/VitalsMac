@@ -18,6 +18,8 @@ Everything runs locally. VitalsMac makes no network connections and sends nothin
 - **Dashboard** (menu → *Open Dashboard*, or launch the app again):
   - **Overview:** health score, storage, memory, processor (user/system split), GPU and network with
     live charts.
+  - **Performance:** usage for each CPU core, load averages, thermal state and uptime, and the top
+    processes by CPU or memory (sampled only while this page is open).
   - **Sensors:** every reading.
   - **History:** CPU, GPU, temperature, fan, memory and network over 1 hour, 24 hours or 7 days.
     One averaged point per minute is saved to

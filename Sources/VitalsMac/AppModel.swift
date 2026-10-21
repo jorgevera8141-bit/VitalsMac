@@ -16,6 +16,10 @@ final class AppModel: ObservableObject {
     @Published private(set) var uploadHistory = SeriesHistory(capacity: historyLength)
     /// One averaged point per minute, kept for a week and saved across restarts.
     @Published private(set) var historyPoints: [HistoryPoint] = []
+    /// Every running process; only filled in while the Performance page is open.
+    @Published private(set) var processes: [ProcessUsage] = []
+    private var isProcessSamplingActive = false
+    private var isProcessSampleInFlight = false
 
     private let sampler = SystemSampler()
     private let alerter = ThermalAlerter()
@@ -53,6 +57,29 @@ final class AppModel: ObservableObject {
         uploadHistory = uploadHistory.appending(snapshot.metrics.networkUp)
         alerter.update(with: readings, settings: settings.settings)
         record(snapshot.metrics)
+        if isProcessSamplingActive { sampleProcesses() }
+    }
+
+    // MARK: Processes
+
+    /// The process list costs a `ps` run, so it is only sampled while someone is looking at it.
+    func setProcessSampling(_ active: Bool) {
+        isProcessSamplingActive = active
+        if active {
+            sampleProcesses()
+        } else {
+            processes = []
+        }
+    }
+
+    private func sampleProcesses() {
+        guard !isProcessSampleInFlight else { return }
+        isProcessSampleInFlight = true
+        Task {
+            let result = await Task.detached(priority: .utility) { ProcessSampler.sample() }.value
+            isProcessSampleInFlight = false
+            if isProcessSamplingActive { processes = result }
+        }
     }
 
     // MARK: History

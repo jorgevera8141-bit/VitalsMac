@@ -3,6 +3,7 @@ import SwiftUI
 
 enum DashboardPage: String, CaseIterable, Identifiable {
     case overview = "Overview"
+    case performance = "Performance"
     case sensors = "Sensors"
     case history = "History"
 
@@ -11,6 +12,7 @@ enum DashboardPage: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .overview: return "square.grid.2x2"
+        case .performance: return "speedometer"
         case .sensors: return "thermometer.medium"
         case .history: return "clock.arrow.circlepath"
         }
@@ -30,6 +32,7 @@ struct DashboardView: View {
         } detail: {
             switch page ?? .overview {
             case .overview: OverviewPage(model: model)
+            case .performance: PerformancePage(model: model)
             case .sensors: SensorsPage(model: model)
             case .history: HistoryPage(model: model)
             }

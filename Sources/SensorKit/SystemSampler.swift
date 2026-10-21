@@ -31,6 +31,7 @@ public final class SystemSampler {
             + battery()
             + system()
         working.hottestCPU = MenuBarSummary.hottestCPUTemperature(readings)
+        working.fastestFan = MenuBarSummary.fastestFan(readings)
         working.gpuLoad = GPUReader.utilization()
         return Snapshot(readings: readings, metrics: working)
     }

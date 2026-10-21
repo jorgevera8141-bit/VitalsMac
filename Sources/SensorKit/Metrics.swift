@@ -12,6 +12,7 @@ public struct Metrics: Equatable, Sendable {
     public internal(set) var networkDown = 0.0
     public internal(set) var networkUp = 0.0
     public internal(set) var hottestCPU: Double?
+    public internal(set) var fastestFan: Double?
     public internal(set) var batteryCharge: Double?
 
     public init() {}

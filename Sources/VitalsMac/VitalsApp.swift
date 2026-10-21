@@ -5,6 +5,33 @@ private enum WindowID {
     static let dashboard = "dashboard"
 }
 
+extension Notification.Name {
+    static let openDashboardRequested = Notification.Name("VitalsMac.openDashboardRequested")
+}
+
+/// Launching the app again while it is already running (Spotlight, Finder, `open`) opens the dashboard.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        NotificationCenter.default.post(name: .openDashboardRequested, object: nil)
+        return true
+    }
+}
+
+/// The menu-bar title. It lives as long as the app, so it also receives the "open dashboard" request.
+struct MenuBarLabel: View {
+    @ObservedObject var model: AppModel
+    @ObservedObject var settings: SettingsModel
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Text(MenuBarSummary.title(from: model.readings, options: settings.settings.titleOptions))
+            .onReceive(NotificationCenter.default.publisher(for: .openDashboardRequested)) { _ in
+                NSApp.activate(ignoringOtherApps: true)
+                openWindow(id: WindowID.dashboard)
+            }
+    }
+}
+
 /// The dropdown that opens from the menu-bar title.
 struct MenuContent: View {
     @ObservedObject var model: AppModel
@@ -46,6 +73,7 @@ struct MenuContent: View {
 
 @main
 struct VitalsApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var settings: SettingsModel
     @StateObject private var model: AppModel
     @StateObject private var loginItem = LoginItemModel()
@@ -60,7 +88,7 @@ struct VitalsApp: App {
         MenuBarExtra {
             MenuContent(model: model)
         } label: {
-            Text(MenuBarSummary.title(from: model.readings, options: settings.settings.titleOptions))
+            MenuBarLabel(model: model, settings: settings)
         }
 
         Window("VitalsMac", id: WindowID.dashboard) {

@@ -14,14 +14,23 @@ final class AppModel: ObservableObject {
     @Published private(set) var gpuHistory = SeriesHistory(capacity: historyLength)
     @Published private(set) var downloadHistory = SeriesHistory(capacity: historyLength)
     @Published private(set) var uploadHistory = SeriesHistory(capacity: historyLength)
+    /// One averaged point per minute, kept for a week and saved across restarts.
+    @Published private(set) var historyPoints: [HistoryPoint] = []
 
     private let sampler = SystemSampler()
     private let alerter = ThermalAlerter()
     private let settings: SettingsModel
+    private let historyStore: HistoryStore
+    private var aggregator = HistoryAggregator()
     private var timer: Timer?
 
-    init(settings: SettingsModel) {
+    init(
+        settings: SettingsModel,
+        historyStore: HistoryStore = HistoryStore(fileURL: HistoryStore.defaultFileURL)
+    ) {
         self.settings = settings
+        self.historyStore = historyStore
+        loadHistory()
         refresh()
         timer = Timer.scheduledTimer(withTimeInterval: Self.sampleInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.refresh() }
@@ -43,5 +52,33 @@ final class AppModel: ObservableObject {
         downloadHistory = downloadHistory.appending(snapshot.metrics.networkDown)
         uploadHistory = uploadHistory.appending(snapshot.metrics.networkUp)
         alerter.update(with: readings, settings: settings.settings)
+        record(snapshot.metrics)
+    }
+
+    // MARK: History
+
+    private func loadHistory() {
+        let cutoff = Date().addingTimeInterval(-HistoryStore.retention)
+        historyPoints = historyStore.load(since: cutoff)
+        // Rewriting on launch drops expired and unreadable lines so the file can't grow without bound.
+        do {
+            try historyStore.rewrite(historyPoints)
+        } catch {
+            NSLog("Vitals: could not compact history: \(error)")
+        }
+    }
+
+    private func record(_ metrics: Metrics, at now: Date = Date()) {
+        let result = aggregator.adding(metrics, at: now)
+        aggregator = result.aggregator
+        guard let point = result.completed else { return }
+
+        let cutoff = now.addingTimeInterval(-HistoryStore.retention)
+        historyPoints = historyPoints.filter { $0.time >= cutoff } + [point]
+        do {
+            try historyStore.append(point)
+        } catch {
+            NSLog("Vitals: could not save history point: \(error)")
+        }
     }
 }

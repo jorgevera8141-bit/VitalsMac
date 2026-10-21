@@ -38,6 +38,15 @@ public enum Calculations {
         return min(max(busy / total, 0), 1)
     }
 
+    /// Shares (0...1) of elapsed CPU time spent in user code (including nice) and in the kernel.
+    public static func cpuBreakdown(previous: CPUTicks, current: CPUTicks) -> (user: Double, system: Double) {
+        guard current.total > previous.total else { return (0, 0) }
+        let total = Double(current.total &- previous.total)
+        let user = Double((current.user &- previous.user) &+ (current.nice &- previous.nice)) / total
+        let system = Double(current.system &- previous.system) / total
+        return (min(max(user, 0), 1), min(max(system, 0), 1))
+    }
+
     /// Bytes per second received and sent between two samples.
     public static func networkRate(
         previous: NetworkCounters,

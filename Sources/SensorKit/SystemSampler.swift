@@ -8,21 +8,31 @@ public final class SystemSampler {
     private var lastNetwork: NetworkCounters?
     private var lastSampleDate: Date?
     private let smc = SMCReader()
+    /// Filled in by each section during one `sampleSnapshot()` pass.
+    private var working = Metrics()
 
     public init() {}
 
     public func sample() -> [Reading] {
+        sampleSnapshot().readings
+    }
+
+    public func sampleSnapshot() -> Snapshot {
         let now = Date()
         let interval = lastSampleDate.map { now.timeIntervalSince($0) } ?? 0
         defer { lastSampleDate = now }
 
-        return processor()
+        working = Metrics()
+        let readings = processor()
             + smc.readings()
             + memory()
             + storage()
             + network(interval: interval)
             + battery()
             + system()
+        working.hottestCPU = MenuBarSummary.hottestCPUTemperature(readings)
+        working.gpuLoad = GPUReader.utilization()
+        return Snapshot(readings: readings, metrics: working)
     }
 
     // MARK: Processor
@@ -32,6 +42,11 @@ public final class SystemSampler {
         defer { lastTicks = ticks }
 
         let usage = lastTicks.map { Calculations.cpuUsage(previous: $0, current: ticks) } ?? 0
+        if let previous = lastTicks {
+            let split = Calculations.cpuBreakdown(previous: previous, current: ticks)
+            working.cpuUser = split.user
+            working.cpuSystem = split.system
+        }
         let load = Self.loadAverages()
         return [
             Reading(group: .processor, label: "Usage", value: Format.percent(usage)),
@@ -80,6 +95,8 @@ public final class SystemSampler {
         let total = ProcessInfo.processInfo.physicalMemory
         let used = (UInt64(stats.active_count) + UInt64(stats.wire_count) + UInt64(stats.compressor_page_count)) * page
         let free = UInt64(stats.free_count) * page
+        working.memoryUsed = used
+        working.memoryTotal = total
         return [
             Reading(group: .memory, label: "Used", value: Format.bytes(used)),
             Reading(group: .memory, label: "Free", value: Format.bytes(free)),
@@ -103,6 +120,8 @@ public final class SystemSampler {
         let free = UInt64(max(0, available))
         let size = UInt64(total)
         let used = size > free ? size - free : 0
+        working.diskUsed = used
+        working.diskTotal = size
         return [
             Reading(group: .storage, label: "Used", value: Format.bytes(used)),
             Reading(group: .storage, label: "Free", value: Format.bytes(free)),
@@ -118,6 +137,8 @@ public final class SystemSampler {
 
         let rate = lastNetwork.map { Calculations.networkRate(previous: $0, current: counters, interval: interval) }
             ?? (down: 0, up: 0)
+        working.networkDown = rate.down
+        working.networkUp = rate.up
         return [
             Reading(group: .network, label: "Download", value: Format.rate(bytesPerSecond: rate.down)),
             Reading(group: .network, label: "Upload", value: Format.rate(bytesPerSecond: rate.up)),
@@ -161,6 +182,7 @@ public final class SystemSampler {
         else { return [] }
 
         let charging = (info[kIOPSIsChargingKey] as? Bool) ?? false
+        working.batteryCharge = Double(capacity) / Double(max)
         var readings = [
             Reading(group: .battery, label: "Charge", value: Format.percent(Double(capacity) / Double(max))),
             Reading(group: .battery, label: "State", value: charging ? "Charging" : "On battery"),

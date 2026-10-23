@@ -42,7 +42,7 @@ that has not been tested.
 ```bash
 swift build            # debug build
 swift test             # unit tests (includes live checks against this machine's sensors)
-scripts/build-app.sh   # builds build/VitalsMac.app (release, ad-hoc signed)
+scripts/build-app.sh   # builds VitalsMac.app into ~/Library/Caches/VitalsMac/build (release, ad-hoc signed)
 scripts/build-app.sh --install   # also copies it to ~/Applications
 ```
 

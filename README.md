@@ -20,6 +20,8 @@ Everything runs locally. VitalsMac makes no network connections and sends nothin
     live charts.
   - **Performance:** usage for each CPU core, load averages, thermal state and uptime, and the top
     processes by CPU or memory (sampled only while this page is open).
+  - **Battery & Power:** charge, health (capacity vs. original), cycle count, temperature, power draw,
+    and a charge-over-time chart. Shows a "No battery" card on desktop Macs.
   - **Sensors:** every reading.
   - **History:** CPU, GPU, temperature, fan, memory and network over 1 hour, 24 hours or 7 days.
     One averaged point per minute is saved to

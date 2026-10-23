@@ -59,7 +59,8 @@ public enum HistoryRange: String, CaseIterable, Identifiable, Sendable {
             fanRPM: optionalAverage(bucket.map(\.fanRPM)),
             memory: bucket.map(\.memory).reduce(0, +) / count,
             networkDown: bucket.map(\.networkDown).reduce(0, +) / count,
-            networkUp: bucket.map(\.networkUp).reduce(0, +) / count
+            networkUp: bucket.map(\.networkUp).reduce(0, +) / count,
+            battery: optionalAverage(bucket.map(\.battery))
         )
     }
 

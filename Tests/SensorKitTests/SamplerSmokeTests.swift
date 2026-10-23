@@ -25,6 +25,17 @@ final class SamplerSmokeTests: XCTestCase {
         print("Per-core: \(metrics.perCoreUsage.map { String(format: "%.0f%%", $0 * 100) })")
     }
 
+    func testBatteryReadsOnThisMachine() throws {
+        guard let battery = BatteryReader.read() else { throw XCTSkip("No battery on this Mac") }
+        print("Battery: \(battery)")
+        print("Battery state: \(battery.stateLabel), power: \(String(describing: battery.powerWatts)) W")
+
+        XCTAssertTrue((0...1).contains(battery.chargeFraction))
+        if let health = battery.healthFraction {
+            XCTAssertTrue((0...1).contains(health))
+        }
+    }
+
     func testProcessListHasRealProcesses() {
         let processes = ProcessSampler.sample()
         let top = ProcessListParser.top(processes, by: .cpu, limit: 5)

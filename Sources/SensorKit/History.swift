@@ -10,12 +10,14 @@ public struct HistoryPoint: Codable, Equatable, Sendable, Identifiable {
     public let memory: Double
     public let networkDown: Double
     public let networkUp: Double
+    /// Battery charge (0...1); nil on Macs without a battery and in points saved before it was recorded.
+    public let battery: Double?
 
     public var id: Date { time }
 
     public init(
         time: Date, cpu: Double, gpu: Double?, temperature: Double?, fanRPM: Double?,
-        memory: Double, networkDown: Double, networkUp: Double
+        memory: Double, networkDown: Double, networkUp: Double, battery: Double? = nil
     ) {
         self.time = time
         self.cpu = cpu
@@ -25,6 +27,7 @@ public struct HistoryPoint: Codable, Equatable, Sendable, Identifiable {
         self.memory = memory
         self.networkDown = networkDown
         self.networkUp = networkUp
+        self.battery = battery
     }
 }
 
@@ -80,6 +83,7 @@ public struct HistoryAggregator: Sendable {
         var gpu = RunningAverage()
         var temperature = RunningAverage()
         var fan = RunningAverage()
+        var battery = RunningAverage()
 
         init(start: Date) {
             self.start = start
@@ -95,6 +99,7 @@ public struct HistoryAggregator: Sendable {
             copy.gpu = gpu.adding(metrics.gpuLoad)
             copy.temperature = temperature.adding(metrics.hottestCPU)
             copy.fan = fan.adding(metrics.fastestFan)
+            copy.battery = battery.adding(metrics.batteryCharge)
             return copy
         }
 
@@ -102,7 +107,8 @@ public struct HistoryAggregator: Sendable {
             let samples = Double(max(count, 1))
             return HistoryPoint(
                 time: start, cpu: cpu / samples, gpu: gpu.average, temperature: temperature.average,
-                fanRPM: fan.average, memory: memory / samples, networkDown: down / samples, networkUp: up / samples
+                fanRPM: fan.average, memory: memory / samples, networkDown: down / samples, networkUp: up / samples,
+                battery: battery.average
             )
         }
     }

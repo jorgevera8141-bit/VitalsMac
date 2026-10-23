@@ -187,6 +187,61 @@ final class HistoryTests: XCTestCase {
         XCTAssertEqual(HistoryRange.week.window, 604_800)
     }
 
+    // MARK: Battery field
+
+    func testBatteryIsAveragedOverPresentSamplesOnly() throws {
+        var aggregator = HistoryAggregator(bucketSeconds: 60)
+        for (seconds, charge) in [(0.0, 0.8 as Double?), (20, nil), (40, 0.6)] {
+            var sample = metrics(cpu: 0.1)
+            sample.batteryCharge = charge
+            aggregator = aggregator.adding(sample, at: t0.addingTimeInterval(seconds)).aggregator
+        }
+
+        let completed = try XCTUnwrap(aggregator.adding(metrics(cpu: 0.1), at: t0.addingTimeInterval(60)).completed)
+
+        XCTAssertEqual(try XCTUnwrap(completed.battery), 0.7, accuracy: 0.0001)
+    }
+
+    func testDownsamplingAveragesBattery() throws {
+        let points = (0..<20).map { index in
+            HistoryPoint(
+                time: t0.addingTimeInterval(Double(index) * 60), cpu: 0.5, gpu: nil, temperature: nil,
+                fanRPM: nil, memory: 0.5, networkDown: 0, networkUp: 0, battery: Double(index)
+            )
+        }
+
+        let result = HistoryRange.downsample(points, maxPoints: 2)
+
+        XCTAssertEqual(try XCTUnwrap(result[0].battery), 4.5, accuracy: 0.0001)
+    }
+
+    func testStoreRoundTripsBattery() throws {
+        let url = makeStoreURL()
+        defer { cleanUp(url) }
+        let store = HistoryStore(fileURL: url)
+        let item = HistoryPoint(
+            time: t0, cpu: 0.1, gpu: nil, temperature: nil, fanRPM: nil, memory: 0.5,
+            networkDown: 0, networkUp: 0, battery: 0.56
+        )
+
+        try store.append(item)
+
+        XCTAssertEqual(store.load(since: t0.addingTimeInterval(-1)), [item])
+    }
+
+    func testLinesSavedBeforeBatteryWasRecordedStillLoad() throws {
+        let url = makeStoreURL()
+        defer { cleanUp(url) }
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let oldLine = #"{"cpu":0.4,"memory":0.5,"networkDown":0,"networkUp":0,"time":1000000}"#
+        try Data((oldLine + "\n").utf8).write(to: url)
+
+        let loaded = HistoryStore(fileURL: url).load(since: t0.addingTimeInterval(-1))
+
+        XCTAssertEqual(loaded.count, 1)
+        XCTAssertNil(loaded[0].battery)
+    }
+
     // MARK: Segments
 
     func testSegmentsSplitWhereTheGapIsTooLarge() {

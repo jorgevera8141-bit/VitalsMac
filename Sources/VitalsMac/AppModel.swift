@@ -16,6 +16,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var uploadHistory = SeriesHistory(capacity: historyLength)
     /// One averaged point per minute, kept for a week and saved across restarts.
     @Published private(set) var historyPoints: [HistoryPoint] = []
+    /// Nil on Macs without a battery. Reading the registry entry is cheap, so it is refreshed every sample.
+    @Published private(set) var battery: BatteryInfo?
     /// Every running process; only filled in while the Performance page is open.
     @Published private(set) var processes: [ProcessUsage] = []
     private var isProcessSamplingActive = false
@@ -49,6 +51,7 @@ final class AppModel: ObservableObject {
         let snapshot = sampler.sampleSnapshot()
         readings = snapshot.readings
         metrics = snapshot.metrics
+        battery = BatteryReader.read()
         cpuHistory = cpuHistory.appending(snapshot.metrics.cpuTotal)
         if let gpu = snapshot.metrics.gpuLoad {
             gpuHistory = gpuHistory.appending(gpu)

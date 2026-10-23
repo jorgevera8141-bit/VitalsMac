@@ -3,7 +3,7 @@ import SensorKit
 import SwiftUI
 
 /// One plotted line: a name, a color and how to read its value from a history point.
-private struct HistorySeries: Identifiable {
+struct HistorySeries: Identifiable {
     let name: String
     let tint: Color
     let value: (HistoryPoint) -> Double?
@@ -112,7 +112,7 @@ struct HistoryPage: View {
     }
 }
 
-private struct TimeSeriesChart: View {
+struct TimeSeriesChart: View {
     let points: [HistoryPoint]
     let series: [HistorySeries]
     let range: HistoryRange
